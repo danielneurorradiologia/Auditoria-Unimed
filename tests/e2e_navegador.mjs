@@ -15,8 +15,8 @@ const [saida = tmpdir(), senha = "demo-local-123", ...pedidos] = process.argv.sl
 const exemplos = pedidos.length
   ? pedidos
   : ["demo_pedido_completo_molas.pdf", "demo_pedido_incompleto_stent.pdf", "demo_pedido_completo_escaneado.pdf"];
-const SITE = "http://localhost:8000/";
-const SERVIDOR = "http://127.0.0.1:8787";
+const SITE = process.env.E2E_SITE ?? "http://localhost:8000/";
+const SERVIDOR = process.env.E2E_SERVIDOR ?? "http://127.0.0.1:8787";
 const EDGE = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
 const PORTA = 9333;
 mkdirSync(saida, { recursive: true });

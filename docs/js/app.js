@@ -5,7 +5,7 @@ import { MODELOS_CLAUDE, PRECOS, estimarAnalise } from "./custos.js";
 import { renderParecer, esc } from "./parecer.js";
 
 // Servidor publicado (Cloudflare Worker). Quem abre o site só precisa da senha.
-const SERVIDOR_PADRAO = "";
+const SERVIDOR_PADRAO = "https://auditoria-opme.danielneurorradiologia.workers.dev";
 const PDFJS_WORKER = "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.3.289/build/pdf.worker.min.mjs";
 
 const $ = (sel) => document.querySelector(sel);
