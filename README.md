@@ -10,7 +10,7 @@ Pré-análise de **pedidos de procedimentos e OPME** para auditoria médica. O s
 > ⚠️ **Protótipo.** A decisão final é sempre do médico auditor (Res. CFM 1.614/2001). Use documentos fictícios ou anonimizados.
 > Nenhum documento de paciente pode ser commitado (o `.gitignore` bloqueia PDFs, exceto os fictícios `docs/exemplos/demo_*.pdf`).
 
-**App:** https://danielneurorradiologia.github.io/Auditoria-Unimed/
+**App:** https://danielneurorradiologia.github.io/Auditoria-Unimed/ (redireciona para `/docs/`)
 
 ## Arquitetura: Jev decide, Claude revisa as dúvidas, regras conferem
 
