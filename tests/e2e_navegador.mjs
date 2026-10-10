@@ -65,7 +65,7 @@ await avaliar(`localStorage.setItem("auditoria.servidor", JSON.stringify(${JSON.
 await cdp("Page.reload");
 await esperar(2500);
 
-console.log("Teste de conexão:", await avaliar(`(async () => { document.querySelector("#testar").click(); await new Promise(r => setTimeout(r, 2500)); return document.querySelector("#status-conexao").textContent; })()`));
+console.log("Teste de conexão:", await avaliar(`(async () => { document.querySelector("#testar").click(); for (let i = 0; i < 20 && /Testando/.test(document.querySelector("#status-conexao").textContent); i++) await new Promise(r => setTimeout(r, 500)); return document.querySelector("#status-conexao").textContent; })()`));
 
 for (const nome of exemplos) {
   console.log(`\n══ ${nome}`);

@@ -140,6 +140,10 @@ function paraBase64(bytes) {
 
 async function receberArquivo(arquivo) {
   $("#erro").hidden = true;
+  $("#resultado").innerHTML = "";
+  $("#progresso").innerHTML = "";
+  $("#acoes-resultado").hidden = true;
+  $("#arquivo-info").textContent = `Lendo ${arquivo.name}…`;
   if (arquivo.type !== "application/pdf") return mostrarErro("Envie um arquivo PDF.");
   if (arquivo.size > 30 * 1024 * 1024) return mostrarErro("PDF acima de 30 MB (limite da API: 32 MB).");
   const bytes = new Uint8Array(await arquivo.arrayBuffer());
