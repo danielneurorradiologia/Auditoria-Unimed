@@ -106,10 +106,10 @@ test("critérios condicionais: C4–C6 só se aplicam com stent", () => {
   assert.deepEqual(ids({ usa_stent: true, dois_stents: true }), ["C1", "C2", "C3", "C4", "C5", "C6", "C7"]);
 });
 
-test("estimativa de custo por perfil (5 páginas)", () => {
-  const perto = (p, esperado) => assert.ok(Math.abs(estimarAnalise(p, 5).total - esperado) < 1e-6, p);
-  perto("qualidade", 0.322);
-  perto("equilibrado", 0.161);
-  perto("hibrido", 0.1064);
-  perto("economico", 0.01955);
+test("estimativa de custo: Jev puro e reserva Claude", () => {
+  const perto = (v, esperado) => assert.ok(Math.abs(v - esperado) < 1e-6, `${v} ≠ ${esperado}`);
+  perto(estimarAnalise({ paginas: 5 }).total, 0.0006); // 15 mil tokens × US$ 0,04/M
+  // 30% escaneados (OCR Opus 5 pág.), 20% dúvida de extração, 30% dúvida de critérios
+  const misto = estimarAnalise({ paginas: 5, escaneados: 0.3, duvidaExtracao: 0.2, duvidaCriterios: 0.3 });
+  perto(misto.total, 0.0006 + 0.3 * 0.132 + 0.2 * 0.114 + 0.3 * 0.032);
 });

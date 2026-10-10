@@ -136,9 +136,9 @@ criterios:
     fonte: RN424
     pergunta: "A técnica proposta é descrita de forma coerente em todo o pedido, sem contradições (por exemplo, 'técnica em Y' em um trecho e 'em X' em outro, ou técnica reconstrutiva e desconstrutiva sem dizer em qual aneurisma)?"
     opcoes:
-      atende: "Sim: a técnica é coerente em todo o pedido."
-      nao_atende: "Não: há contradição entre trechos do pedido sobre a técnica."
-      insuficiente: "O pedido não descreve a técnica."
+      atende: "Sim: a técnica é coerente em todo o pedido e compatível com o aneurisma descrito."
+      nao_atende: "Não: a técnica descrita é incompatível com o aneurisma ou a anatomia descritos."
+      insuficiente: "Há contradições entre trechos do pedido, ou a técnica não está descrita: é preciso pedir esclarecimento."
 
 # ── 3. Kit-padrão de OPME (quantidades de REFERÊNCIA — calibrar com a casuística) ─
 # O total permitido = base + acréscimos de cada técnica proposta + acréscimos de

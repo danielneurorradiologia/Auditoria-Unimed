@@ -4,8 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Auditoria OPME — protótipo</title>
-  <meta name="description" content="Protótipo de auditoria médica de procedimentos e OPME assistida por IA, baseada em protocolos versionados.">
+  <meta name="description" content="Protótipo de auditoria médica de procedimentos e OPME: Jev decide, Claude revisa só as dúvidas, regras conferem.">
   <link rel="stylesheet" href="css/estilo.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "@anthropic-ai/sdk": "https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@0.128.0/+esm",
+      "pdfjs-dist": "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.3.289/build/pdf.min.mjs"
+    }
+  }
+  </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
   <script type="module" src="js/app.js"></script>
 </head>
@@ -13,20 +21,19 @@
   <header class="topo">
     <div class="topo-conteudo">
       <h1>Auditoria OPME <span class="selo">protótipo</span></h1>
-      <p>Análise de pedidos de procedimento e OPME com base em protocolos técnicos versionados.</p>
+      <p>Pré-análise de pedidos de procedimento e OPME com protocolos técnicos versionados.</p>
     </div>
   </header>
 
   <main>
     <aside class="aviso" role="note">
-      <strong>Uso restrito e experimental.</strong> O sistema <em>sugere</em> uma decisão, e a decisão final é sempre do médico auditor.
-      O PDF é enviado diretamente do seu navegador para a API de IA. Prefira documentos anonimizados e
-      nunca envie dados de pacientes sem autorização institucional (LGPD).
+      <strong>Protótipo.</strong> O sistema <em>sugere</em> a decisão e o médico auditor decide. Use apenas documentos
+      fictícios ou anonimizados. O texto é anonimizado no navegador antes de ir para a IA, mas o processo é automático e pode falhar (LGPD).
     </aside>
 
     <nav class="abas" role="tablist">
       <button role="tab" data-alvo="painel-analise">Analisar pedido</button>
-      <button role="tab" data-alvo="painel-custos">Estimativa de custos</button>
+      <button role="tab" data-alvo="painel-custos">Custos</button>
       <button role="tab" data-alvo="painel-config">Configurações</button>
     </nav>
 
@@ -37,21 +44,25 @@
         <select id="protocolo"></select>
         <p id="protocolo-info" class="dica"></p>
 
-        <label for="perfil">Perfil de IA</label>
-        <select id="perfil"></select>
-
-        <div id="zona-upload" class="zona-upload" tabindex="0">
+        <div id="zona-upload" class="zona-upload" tabindex="0" role="button">
           <p><strong>Arraste o PDF do pedido aqui</strong> ou clique para escolher</p>
-          <p class="dica">Formulário TISS de OPME, relatório médico e laudos de exames (pode ser escaneado)</p>
+          <p class="dica">Formulário de OPME, relatório médico e laudos. Pode ser escaneado.</p>
           <input id="arquivo" type="file" accept="application/pdf" hidden>
         </div>
         <p id="arquivo-info" class="dica"></p>
-        <p id="estimativa-pedido" class="dica"></p>
+
+        <p class="dica" style="margin-top:14px">Ou use um pedido fictício de demonstração:</p>
+        <div class="exemplos">
+          <button data-exemplo="demo_pedido_completo_molas.pdf">Pedido completo (molas + balão)</button>
+          <button data-exemplo="demo_pedido_incompleto_stent.pdf">Pedido incompleto (stent em Y)</button>
+          <button data-exemplo="demo_pedido_completo_escaneado.pdf">Pedido escaneado (sem texto)</button>
+          <button id="exemplo-simulado">Simulação sem IA</button>
+        </div>
 
         <div class="botoes">
           <button id="analisar" class="primario" disabled>Analisar pedido</button>
-          <button id="exemplo">Ver exemplo sintético (sem IA, sem custo)</button>
         </div>
+        <p id="aviso-config" class="dica" hidden>Configure o servidor e a senha de acesso na aba <strong>Configurações</strong>.</p>
       </div>
 
       <ol id="progresso" class="progresso"></ol>
@@ -67,25 +78,23 @@
     <!-- ── Custos ──────────────────────────────────────────────────────── -->
     <section id="painel-custos" role="tabpanel" hidden>
       <div class="cartao">
-        <h2>Calculadora de custo de IA</h2>
+        <h2>Custo de IA por análise</h2>
+        <p class="dica">O Jev responde quase tudo por frações de centavo. O Claude entra só em PDFs escaneados e nas dúvidas do Jev.</p>
         <div class="grade-2">
-          <div>
-            <label for="calc-volume">Análises por mês</label>
-            <input id="calc-volume" type="number" min="0" step="100" value="1000">
-          </div>
-          <div>
-            <label for="calc-paginas">Páginas por pedido (média)</label>
-            <input id="calc-paginas" type="number" min="1" max="100" value="5">
-          </div>
+          <div><label for="calc-volume">Análises por mês</label><input id="calc-volume" type="number" min="0" step="100" value="1000"></div>
+          <div><label for="calc-paginas">Páginas por pedido (média)</label><input id="calc-paginas" type="number" min="1" max="100" value="5"></div>
+          <div><label for="calc-escaneados">% de PDFs escaneados</label><input id="calc-escaneados" type="number" min="0" max="100" value="30"></div>
+          <div><label for="calc-duvida-ext">% com dúvida na extração</label><input id="calc-duvida-ext" type="number" min="0" max="100" value="20"></div>
+          <div><label for="calc-duvida-crit">% com dúvida nos critérios</label><input id="calc-duvida-crit" type="number" min="0" max="100" value="30"></div>
         </div>
         <div class="tabela-rolagem">
           <table>
-            <thead><tr><th>Perfil</th><th class="num">Por análise</th><th class="num">Por mês</th></tr></thead>
+            <thead><tr><th>Claude de reserva</th><th class="num">Por análise</th><th class="num">Por mês</th></tr></thead>
             <tbody id="calc-tabela"></tbody>
           </table>
         </div>
-        <p class="dica">Premissas de tokens: <span id="premissas"></span>. As regras determinísticas e o parecer não usam IA (custo zero).</p>
-        <h3>Custo real medido</h3>
+        <p class="dica">Só o Jev, sem nenhuma dúvida: <strong id="calc-so-jev"></strong> por análise.</p>
+        <h3>Custo real medido neste navegador</h3>
         <p id="custos-reais" class="dica"></p>
       </div>
     </section>
@@ -94,20 +103,24 @@
     <section id="painel-config" role="tabpanel" hidden>
       <div class="cartao">
         <h2>Configurações</h2>
-        <label for="chave-claude">Chave da API Claude (Anthropic)</label>
-        <input id="chave-claude" type="password" autocomplete="off" placeholder="sk-ant-...">
-        <label for="chave-jev">Chave do TypeSafe Jev (opcional, para os perfis híbrido e econômico)</label>
-        <input id="chave-jev" type="password" autocomplete="off" placeholder="opcional">
+        <label for="servidor">Servidor intermediário (URL)</label>
+        <input id="servidor" type="url" placeholder="https://auditoria-opme.SEU-USUARIO.workers.dev">
+        <label for="senha">Senha de acesso</label>
+        <input id="senha" type="password" autocomplete="off">
+        <div class="botoes"><button id="testar">Testar conexão</button></div>
+        <p id="status-conexao" class="status-conexao"></p>
+        <p class="dica">As chaves do Jev e do Claude ficam guardadas no servidor e nunca passam pelo navegador.</p>
+
+        <label for="modelo-claude">Modelo Claude usado como reserva</label>
+        <select id="modelo-claude"></select>
         <label for="cambio">Câmbio (R$ por US$)</label>
         <input id="cambio" type="number" step="0.01" min="1">
-        <p class="dica">As chaves ficam salvas apenas neste navegador. Use uma chave com limite de gasto definido no console da Anthropic.</p>
-        <button id="esquecer-chaves">Apagar chaves deste navegador</button>
       </div>
     </section>
   </main>
 
   <footer class="rodape">
-    Protocolos versionados no GitHub · cada parecer registra a versão do protocolo usada.
+    Jev decide · Claude revisa as dúvidas · regras conferem · o médico auditor assina.
   </footer>
 </body>
 </html>

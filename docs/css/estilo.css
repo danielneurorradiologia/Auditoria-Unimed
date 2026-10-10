@@ -119,3 +119,16 @@ tr.total td { font-weight: 700; }
   .chip { border: 1px solid #888; }
   tr { break-inside: avoid; }
 }
+
+.trilha { border: 1px solid var(--borda); border-radius: 8px; padding: 12px 14px; margin: 12px 0; }
+.trilha-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-top: 8px; }
+.trilha-grade > div { display: flex; flex-direction: column; gap: 2px; font-size: 0.86rem; color: var(--suave); }
+.trilha-num { font-size: 1.5rem; font-weight: 700; color: var(--texto); font-variant-numeric: tabular-nums; }
+.anon summary { cursor: pointer; color: var(--suave); font-size: 0.86rem; }
+.anon pre { white-space: pre-wrap; font-size: 0.78rem; background: var(--fundo); padding: 10px; border-radius: 6px; max-height: 320px; overflow: auto; }
+.exemplos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.exemplos button { font-size: 0.88rem; }
+.status-conexao { font-size: 0.86rem; margin-top: 8px; }
+.status-conexao.ok { color: var(--ok-texto); }
+.status-conexao.falha { color: var(--ruim-texto); }
+@media print { .anon { display: none; } }

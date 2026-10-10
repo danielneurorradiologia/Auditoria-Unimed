@@ -1,8 +1,12 @@
-// Interface: configuração, upload, execução do motor e calculadora de custos.
+// Interface: configuração, upload, exemplos, execução da análise e calculadora de custos.
 
 import { avaliarRegras, classificar, criteriosAplicaveis } from "./regras.js";
-import { PERFIS, PREMISSAS, estimarAnalise } from "./custos.js";
+import { MODELOS_CLAUDE, PRECOS, estimarAnalise } from "./custos.js";
 import { renderParecer, esc } from "./parecer.js";
+
+// Servidor publicado (Cloudflare Worker). Quem abre o site só precisa da senha.
+const SERVIDOR_PADRAO = "";
+const PDFJS_WORKER = "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.3.289/build/pdf.worker.min.mjs";
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -26,6 +30,8 @@ const local = {
 };
 
 const estado = { protocolo: null, pdf: null, ultimoResultado: null };
+const cambio = () => Number($("#cambio").value) || 5.5;
+const brl = (usd) => `R$ ${(usd * cambio()).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 // ── Protocolos ───────────────────────────────────────────────────────────────
 async function carregarProtocolos() {
@@ -37,46 +43,67 @@ async function carregarProtocolos() {
 }
 
 async function selecionarProtocolo(arquivo) {
-  const texto = await (await fetch(`protocolos/${arquivo}`)).text();
-  estado.protocolo = window.jsyaml.load(texto);
+  estado.protocolo = window.jsyaml.load(await (await fetch(`protocolos/${arquivo}`)).text());
   $("#protocolo-info").textContent =
-    `Versão ${estado.protocolo.versao} · ${estado.protocolo.criterios.length} critérios · ${estado.protocolo.documentacao.length} itens de documentação`;
+    `Versão ${estado.protocolo.versao} · ${estado.protocolo.criterios.length} critérios clínicos · ${estado.protocolo.documentacao.length} checagens de documentação`;
 }
 
 // ── Configuração ─────────────────────────────────────────────────────────────
 function iniciarConfig() {
-  $("#perfil").innerHTML = Object.entries(PERFIS)
-    .map(([id, p]) => `<option value="${id}">${esc(p.nome)}</option>`)
-    .join("");
-  $("#perfil").value = local.ler("perfil", "qualidade");
-  $("#chave-claude").value = local.ler("chaveClaude", "");
-  $("#chave-jev").value = local.ler("chaveJev", "");
+  const doLink = new URLSearchParams(location.search).get("servidor");
+  if (doLink) local.gravar("servidor", doLink);
+  $("#servidor").value = local.ler("servidor", SERVIDOR_PADRAO);
+  $("#senha").value = local.ler("senha", "");
+  $("#modelo-claude").innerHTML = MODELOS_CLAUDE.map((m) => `<option value="${m}">${esc(PRECOS[m].nome)}</option>`).join("");
+  $("#modelo-claude").value = local.ler("modeloClaude", "claude-opus-5-5");
   $("#cambio").value = local.ler("cambio", 5.5);
 
-  $("#perfil").addEventListener("change", () => {
-    local.gravar("perfil", $("#perfil").value);
-    atualizarEstimativaPedido();
-  });
-  $("#chave-claude").addEventListener("change", () => local.gravar("chaveClaude", $("#chave-claude").value.trim()));
-  $("#chave-jev").addEventListener("change", () => local.gravar("chaveJev", $("#chave-jev").value.trim()));
+  for (const [id, chave] of [["#servidor", "servidor"], ["#senha", "senha"], ["#modelo-claude", "modeloClaude"]]) {
+    $(id).addEventListener("change", () => {
+      local.gravar(chave, $(id).value.trim());
+      atualizarAvisoConfig();
+      renderCalculadora();
+    });
+  }
   $("#cambio").addEventListener("change", () => {
     local.gravar("cambio", Number($("#cambio").value));
     renderCalculadora();
   });
-  $("#esquecer-chaves").addEventListener("click", () => {
-    $("#chave-claude").value = $("#chave-jev").value = "";
-    local.gravar("chaveClaude", "");
-    local.gravar("chaveJev", "");
-  });
+  $("#testar").addEventListener("click", testar);
+  atualizarAvisoConfig();
 }
 
-const cambio = () => Number($("#cambio").value) || 5.5;
+const configurado = () => Boolean($("#servidor").value.trim() && $("#senha").value.trim());
+function atualizarAvisoConfig() {
+  $("#aviso-config").hidden = configurado();
+}
 
-// ── Upload ───────────────────────────────────────────────────────────────────
+async function conexaoAtual() {
+  const { criarConexao } = await import("./ia.js");
+  return criarConexao({ proxyUrl: $("#servidor").value.trim(), senha: $("#senha").value.trim() });
+}
+
+async function testar() {
+  const s = $("#status-conexao");
+  s.className = "status-conexao";
+  s.textContent = "Testando…";
+  try {
+    const { testarConexao } = await import("./ia.js");
+    const r = await testarConexao(await conexaoAtual());
+    s.classList.add(r.jev && r.claude ? "ok" : "falha");
+    s.textContent = `Conectado. Jev: ${r.jev ? "ok" : "sem chave"} · Claude: ${r.claude ? "ok" : "sem chave"}`;
+  } catch (e) {
+    s.classList.add("falha");
+    s.textContent = e.message;
+  }
+}
+
+// ── PDF ──────────────────────────────────────────────────────────────────────
 function iniciarUpload() {
   const zona = $("#zona-upload");
   const input = $("#arquivo");
   zona.addEventListener("click", () => input.click());
+  zona.addEventListener("keydown", (e) => (e.key === "Enter" || e.key === " ") && input.click());
   zona.addEventListener("dragover", (e) => {
     e.preventDefault();
     zona.classList.add("arrastando");
@@ -88,26 +115,44 @@ function iniciarUpload() {
     if (e.dataTransfer.files[0]) receberArquivo(e.dataTransfer.files[0]);
   });
   input.addEventListener("change", () => input.files[0] && receberArquivo(input.files[0]));
+  document.querySelectorAll("[data-exemplo]").forEach((b) =>
+    b.addEventListener("click", async () => {
+      const nome = b.dataset.exemplo;
+      const blob = await (await fetch(`exemplos/${nome}`)).blob();
+      await receberArquivo(new File([blob], nome, { type: "application/pdf" }));
+      if (configurado()) analisar();
+    }),
+  );
+}
+
+async function lerTextoPdf(bytes) {
+  const pdfjs = await import("pdfjs-dist");
+  pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+  const { extrairTextoPdf } = await import("./texto.js");
+  return extrairTextoPdf(pdfjs, bytes);
+}
+
+function paraBase64(bytes) {
+  let binario = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) binario += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(binario);
 }
 
 async function receberArquivo(arquivo) {
+  $("#erro").hidden = true;
   if (arquivo.type !== "application/pdf") return mostrarErro("Envie um arquivo PDF.");
   if (arquivo.size > 30 * 1024 * 1024) return mostrarErro("PDF acima de 30 MB (limite da API: 32 MB).");
   const bytes = new Uint8Array(await arquivo.arrayBuffer());
-  let binario = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) binario += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  const paginas = Math.max(1, (binario.match(/\/Type\s*\/Page(?!s)/g) ?? []).length);
-  estado.pdf = { nome: arquivo.name, base64: btoa(binario), paginas };
-  $("#arquivo-info").textContent = `${arquivo.name} · ${paginas} página(s) · ${(arquivo.size / 1024 / 1024).toFixed(1)} MB`;
-  $("#analisar").disabled = false;
-  atualizarEstimativaPedido();
-}
-
-function atualizarEstimativaPedido() {
-  if (!estado.pdf) return;
-  const e = estimarAnalise($("#perfil").value, estado.pdf.paginas);
-  $("#estimativa-pedido").textContent =
-    `Custo estimado: US$ ${e.total.toFixed(3)} (≈ R$ ${(e.total * cambio()).toFixed(2).replace(".", ",")})`;
+  try {
+    const pdf = await lerTextoPdf(bytes.slice());
+    estado.pdf = { nome: arquivo.name, base64: paraBase64(bytes), ...pdf };
+    const escaneado = pdf.texto.replace(/\s/g, "").length < 100 * pdf.paginas;
+    $("#arquivo-info").textContent =
+      `${arquivo.name} · ${pdf.paginas} página(s) · ${escaneado ? "escaneado (sem texto): o Claude vai transcrever" : `${pdf.texto.length} caracteres de texto`}`;
+    $("#analisar").disabled = false;
+  } catch (e) {
+    mostrarErro(`Não foi possível ler o PDF: ${e.message}`);
+  }
 }
 
 // ── Execução ─────────────────────────────────────────────────────────────────
@@ -123,47 +168,33 @@ function mostrarErro(msg) {
 }
 
 async function analisar() {
-  const chaveClaude = $("#chave-claude").value.trim();
-  if (!chaveClaude) return mostrarErro("Informe a chave da API Claude em Configurações.");
+  if (!estado.pdf) return;
+  if (!configurado()) {
+    mostrarErro("Configure o servidor e a senha de acesso na aba Configurações.");
+    return;
+  }
   $("#erro").hidden = true;
   $("#progresso").innerHTML = "";
   $("#resultado").innerHTML = "";
+  $("#acoes-resultado").hidden = true;
   $("#analisar").disabled = true;
-
-  const perfil = PERFIS[$("#perfil").value];
+  const inicio = performance.now();
   try {
-    // Módulos de IA carregados só aqui: o modo exemplo funciona mesmo sem acesso ao CDN.
-    const { criarClienteClaude } = await import("./ia.js");
-    const { extrairCaso } = await import("./extracao.js");
-    const { avaliarCriterios } = await import("./julgamento.js");
-    const cliente = criarClienteClaude(chaveClaude);
-
-    progresso(`1/4 Lendo o PDF e extraindo dados (${perfil.extracao})…`);
-    const extracao = await extrairCaso(cliente, {
-      modelo: perfil.extracao,
+    const { analisarPedido } = await import("./pipeline.js");
+    const r = await analisarPedido({
+      conexao: await conexaoAtual(),
+      protocolo: estado.protocolo,
+      texto: estado.pdf.texto,
+      paginas: estado.pdf.paginas,
       pdfBase64: estado.pdf.base64,
       nomeArquivo: estado.pdf.nome,
-    });
-    const caso = extracao.dados;
-
-    progresso("2/4 Aplicando regras determinísticas (documentação, kit-padrão, PHASES)…");
-    const regras = avaliarRegras(caso, estado.protocolo);
-
-    progresso("3/4 Julgando critérios clínicos…");
-    const julgamento = await avaliarCriterios({
-      caso,
-      fatos: regras.fatos,
-      protocolo: estado.protocolo,
-      perfil,
-      clienteClaude: cliente,
-      chaveJev: $("#chave-jev").value.trim(),
+      modeloClaude: $("#modelo-claude").value,
       aoProgredir: progresso,
     });
-
-    progresso("4/4 Classificando e montando o parecer…");
-    const custos = [{ etapa: "Extração", ...extracao.custo }, ...julgamento.custos];
-    mostrarResultado({ caso, regras, julgamento, custos, avisos: julgamento.avisos });
-    registrarCusto(custos);
+    const segundos = (performance.now() - inicio) / 1000;
+    progresso(`Concluído em ${segundos.toFixed(1)} s.`);
+    mostrarResultado({ ...r, segundos });
+    registrarCusto(r);
   } catch (e) {
     mostrarErro(e.message ?? String(e));
   } finally {
@@ -171,20 +202,29 @@ async function analisar() {
   }
 }
 
-function mostrarResultado({ caso, regras, julgamento, custos, avisos, simulado = false }) {
-  const decisao = classificar({ documentacao: regras.documentacao, criterios: julgamento.criterios, opme: regras.opme });
-  estado.ultimoResultado = { protocolo: { id: estado.protocolo.id, versao: estado.protocolo.versao }, caso, regras, julgamento, decisao, custos };
+function mostrarResultado({ caso, regras, julgamento, decisao, custos, avisos, trilha, anonimizacao, segundos, simulado = false }) {
+  estado.ultimoResultado = {
+    protocolo: { id: estado.protocolo.id, versao: estado.protocolo.versao },
+    data: new Date().toISOString(),
+    decisao: { codigo: decisao.codigo, titulo: decisao.titulo, pendencias: decisao.pendencias },
+    caso,
+    regras,
+    criterios: julgamento.criterios,
+    custos,
+    trilha,
+  };
   $("#resultado").innerHTML = renderParecer({
-    protocolo: estado.protocolo, caso, regras, julgamento, decisao, custos, avisos, cambio: cambio(), simulado,
+    protocolo: estado.protocolo, caso, regras, julgamento, decisao, custos, avisos, cambio: cambio(),
+    simulado, trilha, anonimizacao, segundos,
   });
   $("#acoes-resultado").hidden = false;
   $("#resultado").scrollIntoView({ behavior: "smooth" });
 }
 
-async function rodarExemplo() {
+async function rodarSimulado() {
   $("#erro").hidden = true;
   $("#progresso").innerHTML = "";
-  progresso("Exemplo sintético: regras reais + julgamento SIMULADO (sem IA, sem custo).");
+  progresso("Simulação: regras reais + julgamento SIMULADO (sem IA, sem custo).");
   const ex = await (await fetch("exemplos/caso_sintetico_aneurisma_y.json")).json();
   const regras = avaliarRegras(ex.caso, estado.protocolo);
   const criterios = criteriosAplicaveis(estado.protocolo, regras.fatos).map((c) =>
@@ -192,50 +232,64 @@ async function rodarExemplo() {
       ? { ...c, ...ex.julgamento_simulado[c.id], decisor: "simulado" }
       : { ...c, resultado: "nao_aplicavel", justificativa: "Não se aplica." },
   );
+  const decisao = classificar({ documentacao: regras.documentacao, criterios, opme: regras.opme });
   mostrarResultado({
-    caso: ex.caso, regras, julgamento: { criterios, observacoes: [] }, custos: [], avisos: [], simulado: true,
+    caso: ex.caso, regras, julgamento: { criterios, observacoes: [] }, decisao, custos: [], avisos: [], simulado: true,
   });
 }
 
-// ── Registro de custos reais (sem dados de paciente) ─────────────────────────
-function registrarCusto(custos) {
+// ── Custos ───────────────────────────────────────────────────────────────────
+function registrarCusto(r) {
   const log = local.ler("custos", []);
   log.push({
     data: new Date().toISOString(),
-    perfil: $("#perfil").value,
-    paginas: estado.pdf.paginas,
-    usd: custos.reduce((s, c) => s + c.usd, 0),
+    usd: r.custos.reduce((s, c) => s + c.usd, 0),
+    claude: r.trilha.usoClaude.length > 0,
+    escaneado: r.trilha.escaneado,
   });
   local.gravar("custos", log.slice(-500));
   renderCalculadora();
 }
 
-// ── Calculadora ──────────────────────────────────────────────────────────────
 function renderCalculadora() {
+  const pct = (id) => Math.min(100, Math.max(0, Number($(id).value) || 0)) / 100;
   const volume = Number($("#calc-volume").value) || 0;
-  const paginas = Number($("#calc-paginas").value) || 1;
-  const c = cambio();
-  const real = (v) => `R$ ${(v * c).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  $("#calc-tabela").innerHTML = Object.keys(PERFIS)
-    .map((id) => {
-      const e = estimarAnalise(id, paginas);
-      return `<tr>
-        <td><strong>${esc(e.perfil)}</strong><br><small>${e.etapas.filter((x) => x.usd > 0).map((x) => `${esc(x.etapa)}: US$ ${x.usd.toFixed(4)}`).join("<br>")}</small></td>
-        <td class="num">US$ ${e.total.toFixed(3)}<br><small>${real(e.total)}</small></td>
-        <td class="num">US$ ${(e.total * volume).toFixed(2)}<br><small>${real(e.total * volume)}</small></td>
-      </tr>`;
-    })
-    .join("");
+  const base = {
+    paginas: Number($("#calc-paginas").value) || 1,
+    escaneados: pct("#calc-escaneados"),
+    duvidaExtracao: pct("#calc-duvida-ext"),
+    duvidaCriterios: pct("#calc-duvida-crit"),
+  };
+  const usdFmt = (v) => `US$ ${v.toFixed(v < 0.01 ? 4 : 3)}`;
+  $("#calc-tabela").innerHTML = MODELOS_CLAUDE.map((modeloClaude) => {
+    const e = estimarAnalise({ ...base, modeloClaude });
+    const destaque = modeloClaude === $("#modelo-claude").value ? " (selecionado)" : "";
+    return `<tr>
+      <td><strong>${esc(PRECOS[modeloClaude].nome)}${destaque}</strong><br><small>${e.etapas
+        .filter((x) => x.usd > 0)
+        .map((x) => `${esc(x.etapa)}: ${usdFmt(x.usd)}`)
+        .join("<br>")}</small></td>
+      <td class="num">${usdFmt(e.total)}<br><small>${brl(e.total)}</small></td>
+      <td class="num">US$ ${(e.total * volume).toFixed(2)}<br><small>${brl(e.total * volume)}</small></td>
+    </tr>`;
+  }).join("");
+  const soJev = estimarAnalise({ paginas: base.paginas });
+  $("#calc-so-jev").textContent = `${usdFmt(soJev.total)} (${brl(soJev.total)}); ${volume} análises = ${brl(soJev.total * volume)} por mês`;
 
   const log = local.ler("custos", []);
+  const media = (xs) => xs.reduce((s, x) => s + x.usd, 0) / (xs.length || 1);
+  const soJevReal = log.filter((x) => !x.claude);
   $("#custos-reais").innerHTML = log.length
-    ? `${log.length} análise(s) real(is) neste navegador · custo médio US$ ${(log.reduce((s, x) => s + x.usd, 0) / log.length).toFixed(3)} · última US$ ${log.at(-1).usd.toFixed(3)} (${esc(log.at(-1).perfil)}, ${log.at(-1).paginas} pág.)`
+    ? `${log.length} análise(s): custo médio ${usdFmt(media(log))}. ` +
+      `Só Jev: ${soJevReal.length} análise(s), média ${usdFmt(media(soJevReal))}. ` +
+      `Com Claude: ${log.length - soJevReal.length}, média ${usdFmt(media(log.filter((x) => x.claude)))}.`
     : "Nenhuma análise real ainda. O custo medido de cada análise aparece aqui.";
 }
 
 function iniciarCalculadora() {
-  $("#premissas").textContent = Object.entries(PREMISSAS).map(([k, v]) => `${k}: ${v}`).join(" · ");
-  for (const id of ["#calc-volume", "#calc-paginas"]) $(id).addEventListener("input", renderCalculadora);
+  for (const id of ["#calc-volume", "#calc-paginas", "#calc-escaneados", "#calc-duvida-ext", "#calc-duvida-crit"]) {
+    $(id).addEventListener("input", renderCalculadora);
+  }
   renderCalculadora();
 }
 
@@ -248,7 +302,7 @@ function iniciarAbas() {
     local.gravar("aba", alvo);
   };
   abas.forEach((a) => a.addEventListener("click", () => mostrar(a.dataset.alvo)));
-  mostrar(local.ler("aba", "painel-analise"));
+  mostrar(configurado() || local.ler("aba", null) ? local.ler("aba", "painel-analise") : "painel-config");
 }
 
 function baixarJSON() {
@@ -259,12 +313,12 @@ function baixarJSON() {
 }
 
 async function iniciar() {
-  iniciarAbas();
   iniciarConfig();
+  iniciarAbas();
   iniciarUpload();
   iniciarCalculadora();
   $("#analisar").addEventListener("click", analisar);
-  $("#exemplo").addEventListener("click", rodarExemplo);
+  $("#exemplo-simulado").addEventListener("click", rodarSimulado);
   $("#imprimir").addEventListener("click", () => window.print());
   $("#baixar").addEventListener("click", baixarJSON);
   $("#protocolo").addEventListener("change", (e) => selecionarProtocolo(e.target.value));

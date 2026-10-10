@@ -21,9 +21,43 @@ const ROTULO_OPME = {
 
 const chip = ([texto, tipo]) => `<span class="chip chip-${tipo}">${esc(texto)}</span>`;
 const usd = (v) => `US$ ${v.toFixed(v < 0.01 ? 4 : 3)}`;
-const brl = (v, cambio) => `R$ ${(v * cambio).toFixed(2).replace(".", ",")}`;
+const brl = (v, cambio) => `R$ ${(v * cambio).toFixed(v * cambio < 0.1 ? 4 : 2).replace(".", ",")}`;
 
-export function renderParecer({ protocolo, caso, regras, julgamento, decisao, custos, avisos, cambio, simulado }) {
+/** Agrupa chamadas da mesma etapa/modelo numa linha só. */
+function agruparCustos(custos) {
+  const grupos = new Map();
+  for (const c of custos) {
+    const chave = `${c.etapa}|${c.modelo}`;
+    const g = grupos.get(chave) ?? { ...c, usd: 0, chamadas: 0 };
+    g.usd += c.usd;
+    g.chamadas++;
+    grupos.set(chave, g);
+  }
+  return [...grupos.values()];
+}
+
+const ROTULO_DECISOR = { jev: "Jev", claude: "Claude", simulado: "simulado" };
+
+function painelTrilha(trilha, segundos) {
+  if (!trilha) return "";
+  const claude = trilha.usoClaude?.length
+    ? `<strong>Claude</strong> usado só em: ${trilha.usoClaude.map(esc).join("; ")}`
+    : "<strong>Claude não foi necessário</strong>";
+  const duvidas = (trilha.duvidas ?? []).filter((d) => !d.escalado);
+  return `<section class="trilha">
+    <p class="sobretitulo">Como a decisão foi tomada</p>
+    <div class="trilha-grade">
+      <div><span class="trilha-num">${trilha.perguntasJev}</span><span>perguntas respondidas pelo <strong>Jev</strong></span></div>
+      <div><span class="trilha-num">${trilha.camposRegra}</span><span>dados lidos por <strong>regras</strong> (códigos, quantidades, medidas)</span></div>
+      <div><span class="trilha-num">${trilha.usoClaude?.length ?? 0}</span><span>${claude}</span></div>
+      ${segundos != null ? `<div><span class="trilha-num">${segundos.toFixed(1)} s</span><span>tempo total</span></div>` : ""}
+    </div>
+    ${trilha.escaneado ? "<p class=\"dica\">PDF escaneado (sem texto): o Claude transcreveu o documento e o Jev decidiu a partir da transcrição.</p>" : ""}
+    ${duvidas.length ? `<p class="dica">Dúvidas do Jev mantidas sem chamar o Claude porque só podem tornar a decisão mais rigorosa: ${duvidas.map((d) => `${esc(d.chave)} = ${esc(String(d.valor))} (${Math.round(d.confianca * 100)}%)`).join("; ")}.</p>` : ""}
+  </section>`;
+}
+
+export function renderParecer({ protocolo, caso, regras, julgamento, decisao, custos, avisos, cambio, simulado, trilha, anonimizacao, segundos }) {
   const total = custos.reduce((s, c) => s + c.usd, 0);
   const hoje = new Date().toLocaleString("pt-BR");
   return `
@@ -42,6 +76,8 @@ export function renderParecer({ protocolo, caso, regras, julgamento, decisao, cu
       <p class="decisao-nota">Sugestão automatizada. Negativas e glosas exigem análise e assinatura do médico auditor (Res. CFM 1.614/2001).</p>
     </section>
 
+    ${painelTrilha(trilha, segundos)}
+
     ${avisos.length ? `<section class="avisos">${avisos.map((a) => `<p>⚠ ${esc(a)}</p>`).join("")}</section>` : ""}
 
     ${lista("Pendências a solicitar ao médico assistente", decisao.pendencias)}
@@ -56,7 +92,7 @@ export function renderParecer({ protocolo, caso, regras, julgamento, decisao, cu
           .map(
             (c) => `<tr>
               <td><strong>${esc(c.id)}</strong> <small>(${esc(c.peso)})</small><br><span class="pergunta">${esc(c.pergunta)}</span></td>
-              <td>${chip(ROTULO_RESULTADO[c.resultado] ?? [c.resultado, "neutro"])}${c.confianca != null ? `<br><small>confiança ${(c.confianca * 100).toFixed(0)}%</small>` : ""}${c.decisor ? `<br><small>${esc(c.decisor)}</small>` : ""}</td>
+              <td>${chip(ROTULO_RESULTADO[c.resultado] ?? [c.resultado, "neutro"])}${c.decisor ? `<br><small>${esc(ROTULO_DECISOR[c.decisor] ?? c.decisor)}${c.decisor === "jev" && c.confianca != null ? ` · ${(c.confianca * 100).toFixed(0)}%` : ""}${c.decisor === "claude" && c.confiancaJev != null ? ` (Jev tinha ${(c.confiancaJev * 100).toFixed(0)}%)` : ""}</small>` : ""}</td>
               <td>${esc(c.justificativa)}${c.evidencia ? `<br><small class="evidencia">Evidência: ${esc(c.evidencia)}</small>` : ""}<br><small>Fonte: ${esc(protocolo.fontes?.[c.fonte] ?? c.fonte)}</small></td>
             </tr>`,
           )
@@ -106,12 +142,13 @@ export function renderParecer({ protocolo, caso, regras, julgamento, decisao, cu
     <section>
       <h3>Resumo clínico (anonimizado)</h3>
       <p>${esc(caso.resumo_clinico)}</p>
+      ${anonimizacao ? `<details class="anon"><summary>Texto anonimizado enviado à IA (${anonimizacao.contagem.nomes} nome(s), ${anonimizacao.contagem.contatos} contato(s) e ${anonimizacao.contagem.documentos} documento(s) removidos)</summary><pre>${esc(anonimizacao.texto)}</pre></details>` : ""}
     </section>
 
     <section class="custo-analise">
-      <h3>Custo desta análise</h3>
-      <table><tbody>${custos
-        .map((c) => `<tr><td>${esc(c.etapa)} <small>(${esc(PRECOS[c.modelo]?.nome ?? c.modelo)})</small></td><td class="num">${usd(c.usd)}</td><td class="num">${brl(c.usd, cambio)}</td></tr>`)
+      <h3>Custo de IA desta análise</h3>
+      <table><tbody>${agruparCustos(custos)
+        .map((c) => `<tr><td>${esc(c.etapa)} <small>(${esc(PRECOS[c.modelo]?.nome ?? c.modelo)}${c.chamadas > 1 ? `, ${c.chamadas} chamadas` : ""})</small></td><td class="num">${usd(c.usd)}</td><td class="num">${brl(c.usd, cambio)}</td></tr>`)
         .join("")}
         <tr class="total"><td>Total</td><td class="num">${usd(total)}</td><td class="num">${brl(total, cambio)}</td></tr>
       </tbody></table>

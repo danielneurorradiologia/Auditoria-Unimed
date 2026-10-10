@@ -1,71 +1,73 @@
 # Auditoria OPME: protótipo com IA
 
-Web app para **pré-análise de pedidos de procedimentos e OPME** em auditoria médica. O fluxo é:
+Pré-análise de **pedidos de procedimentos e OPME** para auditoria médica. O sistema confere o pedido contra um **protocolo técnico versionado** (guidelines das sociedades, Rol/DUT da ANS, TUSS) e **sugere** uma decisão:
 
-1. O médico auditor envia o PDF do pedido (formulário TISS, relatório, laudos).
-2. O sistema confere o pedido contra um **protocolo técnico versionado**, baseado nos guidelines das sociedades médicas, no Rol/DUT da ANS e na TUSS.
-3. O sistema **sugere** uma decisão: autorizar, autorizar parcialmente, pendência ou encaminhar ao especialista.
+- autorizar;
+- autorizar parcialmente;
+- pendência;
+- encaminhar ao especialista.
 
-> ⚠️ **Protótipo pessoal, experimental.** A decisão final é sempre do médico auditor (Res. CFM 1.614/2001).
-> Não envie dados de pacientes sem autorização institucional (LGPD). Nenhum documento de paciente deve ser
-> commitado neste repositório (o `.gitignore` bloqueia PDFs e imagens).
+> ⚠️ **Protótipo.** A decisão final é sempre do médico auditor (Res. CFM 1.614/2001). Use documentos fictícios ou anonimizados.
+> Nenhum documento de paciente pode ser commitado (o `.gitignore` bloqueia PDFs, exceto os fictícios `docs/exemplos/demo_*.pdf`).
 
 **App:** https://danielneurorradiologia.github.io/Auditoria-Unimed/
 
-## Como funciona
+## Arquitetura: Jev decide, Claude revisa as dúvidas, regras conferem
 
 ```
-PDF do pedido
-   │
-   ▼
-1. Extração (Claude lê o PDF, inclusive escaneado) ──► caso estruturado e anonimizado (JSON)
-   │
-   ▼
-2. Regras determinísticas (código, custo zero)
-   • documentação obrigatória (CID, TUSS, ANVISA, 3 marcas, laudos)
-   • OPME × kit-padrão (excedentes, itens fora do kit, duplicidades)
-   • cálculos: PHASES, colo largo
-   │
-   ▼
-3. Critérios clínicos do protocolo
-   • perfil Claude: o Claude julga cada critério e cita a evidência
-   • perfil Jev: o Jev decide cada critério com probabilidade; confiança < 80% → Claude
-   │
-   ▼
-4. Classificação + parecer (imprimível; registra a versão do protocolo e o custo)
+ Navegador (GitHub Pages)                         Servidor intermediário (Cloudflare Worker)
+ ─────────────────────────                        ─────────────────────────────────────────
+ PDF ─► pdf.js lê o texto ─► anonimização ──────► /jev    ─► TypeSafe Jev   (chave guardada no servidor)
+          │ (sem texto?)                    └───► /claude ─► Anthropic      (chave guardada no servidor)
+          └─► Claude transcreve o escaneado
+ regras: códigos, quantidades, medidas, PHASES, kit-padrão
+ Jev: ~50 perguntas tipadas com probabilidade (paciente, técnicas, aneurismas, OPME, critérios)
+ Claude: só quando o Jev tem dúvida que poderia levar a uma aprovação indevida
+ parecer: decisão + trilha (quem decidiu o quê) + custo real
 ```
 
-| Decisão sugerida | Quando |
-|---|---|
-| 🟢 Autorizar | Documentação completa, critérios atendidos, OPME dentro do kit |
-| 🟡 Autorizar parcialmente | Tudo certo, exceto itens excedentes ou fora do kit (glosa sugerida) |
-| 🟠 Pendência | Falta documentação, informação insuficiente ou item que exige justificativa |
-| 🔴 Encaminhar ao especialista | Algum critério obrigatório **não atendido** (o sistema nunca nega sozinho) |
+**Política de dúvida.** Uma resposta do Jev com confiança baixa só vai ao Claude se o campo for crítico **e** a resposta provável não for a conservadora. Dúvidas que só podem gerar pendência ou glosa são mantidas e aparecem no parecer.
 
-## Usando
+Resultados reais com os PDFs fictícios estão em [CUSTOS.md](CUSTOS.md).
+- Pedido completo com texto: **Autorizar** em ~1 s, US$ 0,0005, só com o Jev.
+- Pedido escaneado: **Autorizar** em ~14 s, US$ 0,05, com o Claude apenas transcrevendo.
 
-1. Abra o app e vá em **Configurações**. Cole sua chave da API Claude (crie em console.anthropic.com e **defina um limite de gasto**). Ela fica salva só no seu navegador.
-2. Para ver o funcionamento sem custo e sem chave, clique em **Ver exemplo sintético**.
-3. Envie o PDF, escolha o perfil de IA e clique em **Analisar pedido**.
-4. Imprima ou salve o parecer em PDF e preencha a decisão do auditor.
+## Usando o site
 
-Custos por perfil: veja [CUSTOS.md](CUSTOS.md) ou a aba **Estimativa de custos** do app.
+1. Em **Configurações**, preencha a URL do servidor e a **senha de acesso**. Você também pode abrir o link com `?servidor=URL` para não precisar digitar a URL.
+2. Clique em **Testar conexão**.
+3. Em **Analisar pedido**, envie um PDF ou clique num pedido de demonstração:
+   - completo;
+   - incompleto;
+   - escaneado.
+4. A **Simulação sem IA** funciona sem servidor e sem custo.
 
-## Protocolos: o conhecimento técnico
+## Servidor intermediário (Cloudflare Worker)
 
-Cada doença ou procedimento é um arquivo YAML em [`docs/protocolos/`](docs/protocolos/), com:
-- **fontes**: guidelines e normas;
+O Jev não aceita chamadas diretas de sites (CORS). Por isso o site fala com um Worker gratuito, que guarda as chaves e exige a senha. O código está em [`proxy/`](proxy/).
+
+```bash
+cd proxy
+npx wrangler login                          # abre o navegador para entrar na Cloudflare
+npx wrangler secret put SENHA_ACESSO        # senha que você dará a quem for ver a demonstração
+npx wrangler secret put TYPESAFE_API_KEY
+npx wrangler secret put ANTHROPIC_API_KEY
+npx wrangler deploy                         # publica em https://auditoria-opme.<sua-conta>.workers.dev
+```
+
+- Só as origens listadas em `ORIGENS_PERMITIDAS` (wrangler.toml) podem usar o servidor.
+- Só duas rotas são repassadas: `/jev` e `/claude/v1/messages`.
+- Defina também um **limite de gasto** no console da Anthropic.
+
+## Protocolos
+
+Cada doença ou procedimento é um YAML em [`docs/protocolos/`](docs/protocolos/), com quatro partes:
+- **fontes**;
 - **documentacao**: checagens determinísticas;
-- **criterios**: perguntas literais julgadas pela IA, cada uma com fonte e peso;
-- **kit_padrao**: quantidades de referência de OPME por técnica.
+- **criterios**: perguntas literais para o Jev, cada uma com peso e fonte;
+- **kit_padrao**: quantidades de referência de OPME.
 
-**Fluxo de atualização:**
-1. Edite o YAML em uma branch e abra um Pull Request.
-2. O especialista revisa e aprova.
-3. Suba a `versao` e preencha `revisado_por` e `data_revisao`.
-4. Ao validar, mude `status: rascunho` para `vigente`.
-
-Para incluir uma doença nova, crie o YAML e registre-o em `docs/protocolos/index.json`.
+As mudanças entram por Pull Request revisado por um especialista. Cada parecer registra a `versao` do protocolo.
 
 | Protocolo | Status |
 |---|---|
@@ -73,32 +75,22 @@ Para incluir uma doença nova, crie o YAML e registre-o em `docs/protocolos/inde
 
 ## Desenvolvimento
 
-O frontend é estático: HTML e módulos JS, sem build, publicado pelo GitHub Pages a partir de `docs/`.
-
 ```bash
-npm install     # só para os testes (js-yaml)
-npm test        # testa o motor de regras com o caso sintético
+npm install
+npm test                          # motor de regras, leitura dos PDFs, anonimização (sem custo)
+npm run test:integracao           # pipeline completo com APIs reais (lê .env; centavos)
+node tests/diagnostico_jev.mjs    # só Jev: mostra as respostas com baixa confiança
+node tests/e2e_navegador.mjs DIR  # navegador real (Edge) + site local + wrangler dev
+python ferramentas/gerar_demo_escaneado.py ferramentas/demo/X.html docs/exemplos/demo_X.pdf
 ```
 
-```
-docs/
-  index.html, css/, js/
-    regras.js      motor determinístico (testado)
-    custos.js      preços e estimativas
-    ia.js          clientes Claude (SDK oficial) e Jev
-    extracao.js    prompt + schema da extração
-    julgamento.js  critérios (Claude / Jev + escalonamento)
-    parecer.js     renderização do parecer
-  protocolos/      YAML por doença
-  exemplos/        casos sintéticos anonimizados
-tests/             testes do motor (node --test)
-```
+O `.env` (ignorado pelo git) contém `ANTHROPIC_API_KEY` e `TYPESAFE_API_KEY`. O `proxy/.dev.vars` traz as mesmas chaves e a `SENHA_ACESSO`, para o `wrangler dev`.
 
 ## Roteiro
 
-- [x] Fase 0: estrutura, protocolo-rascunho de aneurisma, motor de regras, parecer, custos
-- [ ] Fase 1: validar o protocolo de aneurisma com especialistas; códigos TUSS reais; testar com pedidos anonimizados
-- [ ] Fase 2: protocolos das procedências de maior volume e custo de OPME (coluna, artroplastia, cardiologia...)
-- [ ] Fase 3: base TUSS 19/22 e Rol/DUT importada; checagem automática de códigos
-- [ ] Fase 4: modo sombra contra decisões de auditores, medindo concordância (meta: zero aprovação indevida)
-- [ ] Fase 5: backend institucional (chave fora do navegador, login, trilha de auditoria, Batch API)
+- [x] Fase 0: estrutura, protocolo-rascunho, motor de regras, parecer
+- [x] Fase 1: Jev como motor principal, Claude de reserva, anonimização, servidor intermediário, PDFs de demonstração
+- [ ] Validar o protocolo de aneurisma com especialistas e preencher os códigos TUSS reais
+- [ ] Testar com pedidos reais anonimizados; calibrar limiares de confiança do Jev
+- [ ] Novos protocolos (coluna, artroplastia, cardiologia...) e base TUSS/Rol/DUT
+- [ ] Modo sombra contra decisões de auditores (meta: zero aprovação indevida)

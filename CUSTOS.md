@@ -1,59 +1,45 @@
-# Estimativa de custo de IA por análise
+# Custo de IA por análise: Jev primeiro, Claude de reserva
 
-> Preços de outubro de 2026. Claude segundo a tabela oficial da Anthropic. Jev segundo a TypeSafe e revendedores, que variam de US$ 0,04 a 0,058 por milhão de tokens.
-> Câmbio usado: **US$ 1 = R$ 5,50**, sem IOF do cartão internacional. Confira os valores antes de decidir.
-> O app mede o **custo real** de cada análise (aba *Estimativa de custos*). Use esse número para recalibrar a tabela.
+> Preços de outubro/2026. Câmbio: **US$ 1 = R$ 5,50**, sem IOF.
+> Os valores vêm de **análises reais** dos PDFs de demonstração (out/2026). O app registra o custo de cada análise na aba *Custos*.
 
-## Preços dos modelos (US$ por 1 milhão de tokens)
+## Como o custo se forma
 
-| Modelo | Entrada | Saída | Observação |
-|---|---:|---:|---|
-| Claude Opus 5.5 | 4,00 | 20,00 | Mais preciso; julgamento clínico |
-| Claude Sonnet 5.5 | 2,00 | 10,00 | Bom equilíbrio; lê PDF escaneado |
-| Claude Haiku 5.5 | 0,10 | 0,50 | Muito barato; qualidade da extração a validar |
-| TypeSafe Jev | 0,04 | grátis | Só texto; devolve decisão tipada + probabilidade, não gera texto |
+| Etapa | Quem faz | Custo medido |
+|---|---|---|
+| Leitura do PDF, anonimização, códigos, quantidades, medidas, PHASES, kit-padrão, parecer | Regras (navegador) | **zero** |
+| Classificação (paciente, técnicas, aneurismas, categorias de OPME, coerência) e critérios clínicos | **Jev** (~40–60 perguntas) | **US$ 0,0005–0,0008** |
+| PDF escaneado, sem texto: transcrição | Claude | ~US$ 0,025 por página (Opus 5.5) |
+| Dúvida do Jev em campo crítico da extração | Claude | ~US$ 0,08–0,10 (Opus 5.5) |
+| Critério clínico com confiança do Jev < 80% | Claude | ~US$ 0,03 (Opus 5.5) |
 
-## Premissas por análise (pedido típico de 5 páginas escaneadas)
+**Quando o Claude não é chamado.** Se a dúvida do Jev só pode tornar a decisão **mais rigorosa** (gerar uma pendência ou uma glosa, nunca uma aprovação indevida), a resposta do Jev é mantida. O auditor vê a dúvida no parecer.
 
-| Etapa | Entrada | Saída |
-|---|---:|---:|
-| Extração do PDF (≈ 2.500 tokens/página + 2.500 de instruções) | 15.000 | 4.500 |
-| Julgamento dos critérios (protocolo + caso) | 8.000 | 7.000 |
-| Jev: estado do caso + 7 perguntas | 5.000 | 0 |
-| Escalonamento ao Claude (só critérios com confiança < 80%; ~30% dos casos) | 6.000 | 4.000 |
-| Regras determinísticas, PHASES, kit-padrão, parecer | 0 | 0 |
+## Resultados medidos
 
-## Custo por análise e por mês
+| Pedido de demonstração | Decisão | Claude | Custo | Tempo |
+|---|---|---|---:|---:|
+| Completo (texto) | Autorizar | não | US$ 0,0005 | 1 s |
+| Incompleto (texto) | Pendência + glosas | não / às vezes 1 etapa | US$ 0,0008 – 0,12 | 1–40 s |
+| Completo escaneado (2 páginas) | Autorizar | só transcrição | US$ 0,05 – 0,08 | 14–28 s |
 
-| Perfil | Extração | Critérios | **Por análise** | 1.000/mês | 5.000/mês |
-|---|---|---|---:|---:|---:|
-| **Qualidade máxima** | Opus 5.5 | Opus 5.5 | **US$ 0,32** (R$ 1,77) | R$ 1.771 | R$ 8.855 |
-| **Equilibrado** | Sonnet 5.5 | Sonnet 5.5 | **US$ 0,16** (R$ 0,89) | R$ 886 | R$ 4.428 |
-| **Híbrido** | Sonnet 5.5 | Jev → dúvidas ao Opus 5.5 | **US$ 0,11** (R$ 0,59) | R$ 585 | R$ 2.926 |
-| **Econômico** | Haiku 5.5 | Jev → dúvidas ao Sonnet 5.5 | **US$ 0,02** (R$ 0,11) | R$ 108 | R$ 538 |
+## Estimativa mensal
 
-**Sensibilidade ao tamanho do pedido.** Cada página a mais custa cerca de US$ 0,010 no Opus, US$ 0,005 no Sonnet e US$ 0,0003 no Haiku. Um pedido de 15 páginas no perfil *Qualidade máxima* sai por cerca de US$ 0,42.
+Cenário: 5 páginas por pedido; 30% escaneados; 20% com dúvida na extração; 30% com dúvida nos critérios.
 
-**Incerteza.** O raciocínio interno do modelo (*thinking*) varia de caso para caso. Considere uma faixa de **0,5× a 2×** em torno destes valores até haver medições reais.
+| Claude de reserva | Por análise | 1.000/mês | 5.000/mês |
+|---|---:|---:|---:|
+| **Só Jev** (PDF com texto, sem dúvidas) | **R$ 0,003** | **R$ 3** | **R$ 17** |
+| Opus 5.5 | R$ 0,40 | R$ 399 | R$ 1.996 |
+| Sonnet 5.5 | R$ 0,20 | R$ 201 | R$ 1.006 |
+| Haiku 5.5 | R$ 0,013 | R$ 13 | R$ 66 |
 
-## Onde o Jev ajuda e onde não ajuda
+A maior parte do custo vem dos **PDFs escaneados**. Se os prestadores enviarem o PDF digital em vez da foto do papel, o custo com Opus cai de R$ 0,40 para cerca de R$ 0,18 por análise.
 
-**Ajuda:**
-- Responde cada critério ("atende / não atende / insuficiente") com uma **probabilidade**. O motor usa essa probabilidade para decidir o que vai ao Claude.
-- O custo dos critérios fica praticamente zero (US$ 0,0002 por caso).
-- Todas as perguntas vão em uma única requisição.
+Para comparação, o modelo anterior, com Claude em tudo, custava cerca de R$ 1,77 por análise usando Opus 5.5.
 
-**Não substitui o Claude:**
-- **Não lê PDF nem imagem**, só texto. A extração do documento escaneado continua no Claude.
-- **Não escreve texto.** A justificativa narrativa vem do Claude ou do próprio texto do protocolo.
-- **É fraco em contas.** PHASES, razão domo/colo e quantidades são calculados em código e entregues prontos.
-- **Lê as perguntas ao pé da letra.** Por isso os critérios no protocolo são escritos de forma literal.
-- **É sensível a texto adversarial.** Por isso o Jev recebe o caso já estruturado, e não o texto bruto do solicitante.
-- **É produto novo** (GA em 20/09/2026), com dados processados nos EUA. Não está confirmado se a API aceita chamadas diretas do navegador (CORS). Se não aceitar, o app cai automaticamente para o Claude e avisa.
+## Observações
 
-## Como reduzir mais
-
-1. **Batch API (−50%).** Para análises sem urgência, por exemplo um lote noturno. Exige um backend; não funciona com o fallback do lado do servidor.
-2. **Cache do protocolo.** O protocolo vai no prompt de sistema com cache. Quando passar do tamanho mínimo de cache do modelo, a leitura sai por cerca de 10% do preço.
-3. **Calibrar o limiar do Jev.** Hoje é 0,80. Subir o limiar aumenta a segurança e o custo; baixar faz o contrário. Só mude depois do modo sombra (validação contra decisões humanas).
-4. **Haiku na extração** só depois de comparar a extração dele com a do Sonnet/Opus em pedidos reais anonimizados.
+- O Jev **não lê PDF nem imagem** e **não escreve texto**. Por isso a transcrição de escaneados e as justificativas narrativas ficam com o Claude.
+- A confiança do Jev varia um pouco entre execuções. A política de dúvidas absorve essa variação, e o pior caso é chamar o Claude.
+- O modelo Claude de reserva é escolhido em *Configurações*. O Sonnet 5.5 é cerca de 2× mais barato e mais rápido que o Opus 5.5. Valide a qualidade antes de trocar.

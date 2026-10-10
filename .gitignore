@@ -21,3 +21,11 @@ node_modules/
 __pycache__/
 .DS_Store
 Thumbs.db
+
+# PDFs FICTÍCIOS de demonstração podem ser publicados (gerados em ferramentas/demo)
+!docs/exemplos/demo_*.pdf
+
+# Servidor intermediário (Cloudflare Worker)
+.dev.vars
+.wrangler/
+ferramentas/demo/_escaneado_tmp.html

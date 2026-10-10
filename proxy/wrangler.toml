@@ -1,0 +1,11 @@
+name = "auditoria-opme"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+
+[vars]
+# Sites autorizados a usar este servidor (separados por vírgula).
+ORIGENS_PERMITIDAS = "https://danielneurorradiologia.github.io,http://localhost:8000"
+
+# Secrets (NÃO coloque aqui): SENHA_ACESSO, TYPESAFE_API_KEY, ANTHROPIC_API_KEY
+# Configure com:  npx wrangler secret put SENHA_ACESSO   (e as outras duas)
+# Para testar localmente, crie proxy/.dev.vars com as três linhas NOME=valor (ignorado pelo git).
