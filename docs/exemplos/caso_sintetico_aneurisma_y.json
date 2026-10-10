@@ -1,0 +1,66 @@
+{
+  "_sobre": "Caso SINTÉTICO e ANONIMIZADO, inspirado em um pedido real de OPME para aneurisma (sem nome, médico, contatos ou datas reais). Representa o que a etapa de extração deveria produzir. O bloco 'julgamento_simulado' é ilustrativo (não gerado por IA) e serve para a demonstração sem chave de API.",
+  "caso": {
+    "resumo_clinico": "Paciente com quadro vertiginoso investigado com angiorressonância, que mostrou aneurisma do complexo comunicante anterior projetado para cima, com lesão trilobulada, e outro aneurisma no segmento oftálmico da artéria carótida interna esquerda, além de irregularidades parietais à direita. O médico solicitante propõe tratamento endovascular com técnica reconstrutiva e desconstrutiva.",
+    "paciente": { "idade": null, "sexo": "F", "hipertensao": "nao_informado", "tabagismo": "nao_informado", "hsa_previa": "nao_informado" },
+    "diagnosticos": [
+      { "descricao": "Aneurisma do complexo comunicante anterior", "cid": null },
+      { "descricao": "Aneurisma do segmento oftálmico da ACI esquerda", "cid": null }
+    ],
+    "procedimentos": [
+      { "descricao": "Tratamento endovascular de aneurismas intracranianos (técnica reconstrutiva e desconstrutiva)", "tuss": null }
+    ],
+    "aneurismas": [
+      { "localizacao": "acom", "lado": "linha_media", "tamanho_mm": null, "colo_mm": null, "morfologia": "irregular_lobulado", "sintomatico": "nao_informado", "crescimento_documentado": "nao_informado", "sera_tratado": "nao_informado" },
+      { "localizacao": "aci_oftalmica", "lado": "esquerdo", "tamanho_mm": null, "colo_mm": null, "morfologia": "nao_informado", "sintomatico": "nao_informado", "crescimento_documentado": "nao_informado", "sera_tratado": "nao_informado" }
+    ],
+    "exames": [
+      { "tipo": "angio_rm", "data": null, "laudo_anexado": false, "achados": "Aneurisma do complexo comunicante anterior projetado para cima, trilobulado; aneurisma do segmento oftálmico da ACI esquerda; irregularidades parietais à direita." }
+    ],
+    "tecnicas": ["stent_y", "molas_simples", "oclusao_desconstrutiva"],
+    "justificativa_tecnica": "Lesão trilobulada com risco considerável de ruptura; opção por tratamento endovascular com técnica reconstrutiva e desconstrutiva.",
+    "acessos": ["femoral", "radial"],
+    "justificativa_duplo_acesso": null,
+    "antiagregacao_mencionada": "nao_informado",
+    "opme": [
+      { "n": 0, "descricao": "Introdutor femoral 6F brite tip", "categoria": "introdutor", "quantidade": 1, "codigo_tuss": null, "registro_anvisa": null, "marcas": [] },
+      { "n": 1, "descricao": "Introdutor radial 6F", "categoria": "introdutor", "quantidade": 1, "codigo_tuss": null, "registro_anvisa": null, "marcas": [] },
+      { "n": 2, "descricao": "Introdutor femoral 6F", "categoria": "introdutor", "quantidade": 1, "codigo_tuss": null, "registro_anvisa": null, "marcas": [] },
+      { "n": 3, "descricao": "Bainha aramada hidrofílica valvulada 90 cm 6F (sistema triaxial)", "categoria": "bainha_longa", "quantidade": 1, "codigo_tuss": null, "registro_anvisa": null, "marcas": [] },
+      { "n": 4, "descricao": "Bainha aramada hidrofílica valvulada 90 cm 5F (sistema triaxial)", "categoria": "bainha_longa", "quantidade": 1, "codigo_tuss": null, "registro_anvisa": null, "marcas": [] },
+      { "n": 5, "descricao": "Cateter vertebral 5F", "categoria": "cateter_diagnostico", "quantidade": 1, "codigo_tuss": null, "registro_anvisa": null, "marcas": [] },
+      { "n": 6, "descricao": "Cateter Simmons 5F curva III", "categoria": "cateter_diagnostico", "quantidade": 1, "codigo_tuss": null, "registro_anvisa": null, "marcas": [] },
+      { "n": 7, "descricao": "Guia hidrofílico 0,035\" 180 cm", "categoria": "guia", "quantidade": 1, "codigo_tuss": null, "registro_anvisa": null, "marcas": [] },
+      { "n": 8, "descricao": "Guia teflonado 0,035\" 260 cm (troca)", "categoria": "guia", "quantidade": 1, "codigo_tuss": null, "registro_anvisa": null, "marcas": [] },
+      { "n": 9, "descricao": "Cateter de acesso distal 0.058\" x 115 (até ACM)", "categoria": "cateter_acesso_distal", "quantidade": 1, "codigo_tuss": null, "registro_anvisa": null, "marcas": [] },
+      { "n": 10, "descricao": "Cateter de acesso distal 0.072\" x 115 (até ACI petrosa)", "categoria": "cateter_acesso_distal", "quantidade": 1, "codigo_tuss": null, "registro_anvisa": null, "marcas": [] },
+      { "n": 11, "descricao": "Microcateter 17 compatível com stent", "categoria": "microcateter", "quantidade": 2, "codigo_tuss": null, "registro_anvisa": null, "marcas": [] },
+      { "n": 12, "descricao": "Microcateter 10 para espirais", "categoria": "microcateter", "quantidade": 1, "codigo_tuss": null, "registro_anvisa": null, "marcas": [] },
+      { "n": 13, "descricao": "Microguia 0,014\" 200 cm", "categoria": "microguia", "quantidade": 2, "codigo_tuss": null, "registro_anvisa": null, "marcas": [] },
+      { "n": 14, "descricao": "Microguia 0,014\" 300 cm (troca)", "categoria": "microguia", "quantidade": 1, "codigo_tuss": null, "registro_anvisa": null, "marcas": [] },
+      { "n": 15, "descricao": "Espirais de platina 360°", "categoria": "mola", "quantidade": 10, "codigo_tuss": null, "registro_anvisa": null, "marcas": [] },
+      { "n": 16, "descricao": "Microcateter balão complacente 4x15 mm", "categoria": "microcateter_balao", "quantidade": 1, "codigo_tuss": null, "registro_anvisa": null, "marcas": [] },
+      { "n": 17, "descricao": "Stent intracraniano células abertas para técnica em Y", "categoria": "stent_intracraniano", "quantidade": 2, "codigo_tuss": null, "registro_anvisa": null, "marcas": [] },
+      { "n": 18, "descricao": "Stent", "categoria": "stent_intracraniano", "quantidade": 1, "codigo_tuss": null, "registro_anvisa": null, "marcas": [] },
+      { "n": 19, "descricao": "Torneira stopcock uma via", "categoria": "torneira", "quantidade": 6, "codigo_tuss": null, "registro_anvisa": null, "marcas": [] },
+      { "n": 20, "descricao": "Conectores em Y", "categoria": "conector_y", "quantidade": 4, "codigo_tuss": null, "registro_anvisa": null, "marcas": [] },
+      { "n": 21, "descricao": "Conector em Y easy catch pata de ganso", "categoria": "conector_y", "quantidade": 1, "codigo_tuss": null, "registro_anvisa": null, "marcas": [] },
+      { "n": 22, "descricao": "Monitorização neurofisiológica intraoperatória multimodal 32 canais", "categoria": "monitorizacao_neurofisiologica", "quantidade": 1, "codigo_tuss": null, "registro_anvisa": null, "marcas": [] }
+    ],
+    "inconsistencias_textuais": [
+      "Título/nome do pedido cita 'Stent em X', mas o texto descreve stents 'para técnica em Y'.",
+      "Item 'Introdutor femoral 6F brite tip' aparece fora da numeração, antes do item 1.",
+      "Técnica descrita como 'reconstrutiva e desconstrutiva' sem indicar qual aneurisma recebe cada técnica."
+    ],
+    "data_solicitacao": null
+  },
+  "julgamento_simulado": {
+    "C1": { "resultado": "atende", "justificativa": "Angiorressonância descrita mostrando os aneurismas.", "evidencia": "ARM: aneurisma do complexo comunicante anterior e do segmento oftálmico da ACI esquerda." },
+    "C2": { "resultado": "atende", "justificativa": "Morfologia lobulada (trilobulada) é fator que favorece tratamento.", "evidencia": "\"lesão trilobulada\"" },
+    "C3": { "resultado": "insuficiente", "justificativa": "Não há idade, comorbidades nem discussão de acompanhamento versus tratamento.", "evidencia": "ausente" },
+    "C4": { "resultado": "insuficiente", "justificativa": "Sem medidas de colo nem descrição de bifurcação.", "evidencia": "ausente" },
+    "C5": { "resultado": "insuficiente", "justificativa": "Dois stents (técnica em Y) mais um terceiro sem justificativa anatômica.", "evidencia": "itens 17 e 18" },
+    "C6": { "resultado": "insuficiente", "justificativa": "Antiagregação não mencionada.", "evidencia": "ausente" },
+    "C7": { "resultado": "insuficiente", "justificativa": "Técnica reconstrutiva e desconstrutiva sem indicar em qual aneurisma; título cita X e texto cita Y.", "evidencia": "inconsistências textuais" }
+  }
+}

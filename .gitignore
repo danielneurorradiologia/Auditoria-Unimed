@@ -1,0 +1,23 @@
+# ⚠️ Dados de pacientes NUNCA entram no repositório (repositório público + LGPD).
+*.pdf
+*.PDF
+*.jpg
+*.jpeg
+*.png
+*.tif
+*.tiff
+pedidos/
+pacientes/
+privado/
+
+# Chaves e segredos
+.env
+.env.*
+*.key
+
+# Ferramentas
+node_modules/
+.venv/
+__pycache__/
+.DS_Store
+Thumbs.db

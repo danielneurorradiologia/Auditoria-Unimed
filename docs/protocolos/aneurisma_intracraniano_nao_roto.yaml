@@ -1,0 +1,176 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# PROTOCOLO DE AUDITORIA — Aneurisma intracraniano não roto (tratamento endovascular eletivo)
+#
+# Este arquivo é o "conhecimento técnico" que o motor usa. Toda mudança aqui deve
+# ser feita por Pull Request e revisada por um especialista. Cada parecer gerado
+# registra a `versao` deste arquivo.
+#
+# STATUS: RASCUNHO — critérios e quantidades de referência ainda NÃO validados.
+# ─────────────────────────────────────────────────────────────────────────────
+
+id: aneurisma_intracraniano_nao_roto
+nome: Aneurisma intracraniano não roto — tratamento endovascular eletivo
+versao: "2026.10-rascunho-1"
+status: rascunho            # rascunho | revisado | vigente
+revisado_por: null          # preencher: nome / CRM do especialista que validou
+data_revisao: null
+especialidade: Neurorradiologia intervencionista
+
+cids: ["I67.1"]             # Aneurisma cerebral não roto
+tuss_procedimentos: []      # PREENCHER com os códigos vigentes da TUSS (tabela 22) usados pela operadora
+
+fontes:
+  ESO2022: "Etminan N, et al. European Stroke Organisation (ESO) guidelines on management of unruptured intracranial aneurysms. Eur Stroke J. 2022."
+  AHA2015: "Thompson BG, et al. Guidelines for the management of patients with unruptured intracranial aneurysms (AHA/ASA). Stroke. 2015;46:2368-2400."
+  PHASES: "Greving JP, et al. Development of the PHASES score for prediction of risk of rupture of intracranial aneurysms. Lancet Neurol. 2014;13:59-66."
+  UIATS: "Etminan N, et al. The unruptured intracranial aneurysm treatment score: a multidisciplinary consensus. Neurology. 2015;85:881-889."
+  RN424: "ANS. Resolução Normativa nº 424/2017 (junta médica; OPME: justificativa clínica e indicação de 3 marcas de fabricantes diferentes, regularizadas na ANVISA)."
+  CFM1956: "CFM. Resolução nº 1.956/2010 (prescrição de OPME pelo médico assistente)."
+
+# ── 1. Documentação obrigatória (verificação determinística, sem IA) ──────────
+# `verificacao` aponta para uma função em docs/js/regras.js
+documentacao:
+  - id: D1
+    descricao: CID do diagnóstico principal informado
+    verificacao: cid_informado
+    fonte: RN424
+  - id: D2
+    descricao: Código TUSS do procedimento informado
+    verificacao: tuss_procedimento_informado
+    fonte: RN424
+  - id: D3
+    descricao: Laudo de exame vascular (angio-TC, angio-RM ou angiografia digital) anexado
+    verificacao: laudo_vascular_anexado
+    fonte: AHA2015
+  - id: D4
+    descricao: Medidas de cada aneurisma a tratar (maior diâmetro e colo, em mm)
+    verificacao: medidas_aneurisma
+    fonte: ESO2022
+  - id: D5
+    descricao: Fatores de risco informados (idade, hipertensão, HSA prévia)
+    verificacao: fatores_risco_informados
+    fonte: PHASES
+  - id: D6
+    descricao: Aneurisma(s) a tratar neste procedimento claramente definido(s)
+    verificacao: alvo_definido
+    fonte: ESO2022
+  - id: D7
+    descricao: Código TUSS (tabela 19) de cada OPME
+    verificacao: opme_codigo_tuss
+    fonte: RN424
+  - id: D8
+    descricao: Registro ANVISA de cada OPME
+    verificacao: opme_registro_anvisa
+    fonte: RN424
+  - id: D9
+    descricao: Indicação de 3 marcas de fabricantes diferentes por OPME (quando disponíveis)
+    verificacao: opme_tres_marcas
+    fonte: CFM1956
+
+# ── 2. Critérios clínicos (julgados por IA: Claude ou Jev) ─────────────────────
+# `pergunta` é escrita de forma LITERAL (sem conta, sem dupla negação): o Jev
+# lê as condições ao pé da letra e é fraco em aritmética — as contas (PHASES,
+# razão domo/colo) são feitas em código e entregues como "fatos calculados".
+# `peso`: obrigatorio → "não atende" leva o caso ao especialista
+#         recomendado → gera apenas observação/pendência
+criterios:
+  - id: C1
+    peso: obrigatorio
+    fonte: AHA2015
+    pergunta: "O aneurisma que será tratado está confirmado por exame vascular (angiotomografia, angiorressonância ou angiografia digital) descrito no pedido?"
+    opcoes:
+      atende: "Sim: há exame vascular descrito com o aneurisma a tratar."
+      nao_atende: "Não: o exame descrito não mostra aneurisma, ou não é exame vascular."
+      insuficiente: "O pedido não descreve exame vascular ou não deixa claro qual exame mostrou o aneurisma."
+
+  - id: C2
+    peso: obrigatorio
+    fonte: ESO2022
+    pergunta: "O pedido descreve pelo menos um destes fatores que favorecem tratar: tamanho de 7 mm ou mais; crescimento documentado em exames seriados; morfologia irregular, lobulada ou com daughter sac; sintoma causado pelo aneurisma (ex.: paralisia do III nervo, efeito de massa); hemorragia subaracnoide prévia por outro aneurisma; PHASES de 4 ou mais?"
+    opcoes:
+      atende: "Sim: ao menos um desses fatores está descrito."
+      nao_atende: "Não: os dados descritos mostram aneurisma pequeno, regular, estável, assintomático e sem HSA prévia."
+      insuficiente: "Faltam dados (tamanho, morfologia, evolução ou sintomas) para saber."
+
+  - id: C3
+    peso: obrigatorio
+    fonte: UIATS
+    pergunta: "O pedido documenta a avaliação de risco e benefício do tratamento para este paciente (idade ou expectativa de vida, comorbidades e motivo para tratar em vez de acompanhar com imagem)?"
+    opcoes:
+      atende: "Sim: a relação risco-benefício está documentada."
+      nao_atende: "Não: o pedido indica tratamento apesar de risco do procedimento claramente maior que o benefício descrito."
+      insuficiente: "O pedido não discute risco-benefício nem alternativa de acompanhamento."
+
+  - id: C4
+    peso: obrigatorio
+    fonte: ESO2022
+    aplica_se: usa_stent
+    pergunta: "Como o pedido inclui stent, ele documenta colo largo (colo de 4 mm ou mais, ou razão domo/colo menor que 2) ou anatomia de bifurcação que justifique o stent?"
+    opcoes:
+      atende: "Sim: colo largo ou anatomia de bifurcação descritos."
+      nao_atende: "Não: as medidas descritas mostram colo estreito, sem justificativa para stent."
+      insuficiente: "Não há medidas de colo nem descrição anatômica suficientes."
+
+  - id: C5
+    peso: obrigatorio
+    fonte: ESO2022
+    aplica_se: dois_stents
+    pergunta: "Como o pedido inclui dois ou mais stents (técnica em Y ou em X), ele explica por que um único stent não basta (ex.: aneurisma de bifurcação com colo envolvendo os dois ramos)?"
+    opcoes:
+      atende: "Sim: há justificativa anatômica para mais de um stent."
+      nao_atende: "Não: a anatomia descrita é compatível com stent único."
+      insuficiente: "O pedido não explica a necessidade de mais de um stent."
+
+  - id: C6
+    peso: recomendado
+    fonte: AHA2015
+    aplica_se: usa_stent
+    pergunta: "O pedido menciona o preparo com dupla antiagregação plaquetária antes do implante de stent?"
+    opcoes:
+      atende: "Sim: dupla antiagregação mencionada."
+      nao_atende: "Não: o pedido indica que o paciente não pode usar antiagregação."
+      insuficiente: "O pedido não menciona antiagregação."
+
+  - id: C7
+    peso: obrigatorio
+    fonte: RN424
+    pergunta: "A técnica proposta é descrita de forma coerente em todo o pedido, sem contradições (por exemplo, 'técnica em Y' em um trecho e 'em X' em outro, ou técnica reconstrutiva e desconstrutiva sem dizer em qual aneurisma)?"
+    opcoes:
+      atende: "Sim: a técnica é coerente em todo o pedido."
+      nao_atende: "Não: há contradição entre trechos do pedido sobre a técnica."
+      insuficiente: "O pedido não descreve a técnica."
+
+# ── 3. Kit-padrão de OPME (quantidades de REFERÊNCIA — calibrar com a casuística) ─
+# O total permitido = base + acréscimos de cada técnica proposta + acréscimos de
+# duplo acesso (se houver) + molas por tamanho de cada aneurisma tratado.
+kit_padrao:
+  base:
+    introdutor: 1
+    bainha_longa: 1
+    cateter_guia: 1
+    cateter_diagnostico: 2
+    cateter_acesso_distal: 1
+    guia: 2
+    microcateter: 1
+    microguia: 2
+    torneira: 6
+    conector_y: 3
+  por_tecnica:
+    remodelamento_balao:   { microcateter_balao: 1 }
+    stent_assistido:       { stent_intracraniano: 1, microcateter: 1 }
+    stent_y:               { stent_intracraniano: 2, microcateter: 2, microguia: 1 }
+    stent_x:               { stent_intracraniano: 2, microcateter: 2, microguia: 1 }
+    diversor_fluxo:        { diversor_fluxo: 1, microcateter: 1 }
+    dispositivo_intrassacular: { dispositivo_intrassacular: 1, microcateter: 1 }
+  duplo_acesso:            # só vale com justificativa
+    introdutor: 1
+    bainha_longa: 1
+    cateter_diagnostico: 1
+    cateter_acesso_distal: 1
+  molas_por_tamanho:       # por aneurisma tratado, pelo maior diâmetro (mm)
+    - { ate_mm: 4.9,  max: 4 }
+    - { ate_mm: 9.9,  max: 8 }
+    - { ate_mm: 14.9, max: 12 }
+    - { ate_mm: 999,  max: 20 }
+  exigem_justificativa:    # itens fora do kit que nunca entram automaticamente
+    - monitorizacao_neurofisiologica
