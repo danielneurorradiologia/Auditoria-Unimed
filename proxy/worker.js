@@ -9,6 +9,7 @@
 //
 // Secrets (wrangler secret put …):  SENHA_ACESSO, TYPESAFE_API_KEY, ANTHROPIC_API_KEY
 // Variável (wrangler.toml):          ORIGENS_PERMITIDAS
+// Opcional:                          ANTHROPIC_WORKSPACE_ID (só para chaves sem workspace)
 
 const JEV_URL = "https://api.typesafe.ai/v1/systemone";
 const ANTHROPIC_URL = "https://api.anthropic.com";
@@ -78,6 +79,8 @@ export default {
       });
       const beta = req.headers.get("anthropic-beta");
       if (beta) h.set("anthropic-beta", beta);
+      // Chaves de usuário (não ligadas a um workspace) exigem o ID do workspace.
+      if (env.ANTHROPIC_WORKSPACE_ID) h.set("anthropic-workspace-id", env.ANTHROPIC_WORKSPACE_ID);
       const r = await fetch(`${ANTHROPIC_URL}/v1/messages${url.search}`, { method: "POST", headers: h, body: req.body });
       return repassar(r, cors);
     }

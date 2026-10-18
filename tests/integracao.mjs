@@ -19,7 +19,11 @@ const env = Object.fromEntries(
     .map((l) => [l.slice(0, l.indexOf("=")).trim(), l.slice(l.indexOf("=") + 1).trim()]),
 );
 const modeloClaude = env.MODELO_CLAUDE || "claude-opus-5-5";
-const conexao = criarConexao({ chaveClaude: env.ANTHROPIC_API_KEY, chaveJev: env.TYPESAFE_API_KEY });
+const conexao = criarConexao({
+  chaveClaude: env.ANTHROPIC_API_KEY,
+  chaveJev: env.TYPESAFE_API_KEY,
+  workspaceClaude: env.ANTHROPIC_WORKSPACE_ID,
+});
 const protocolo = yaml.load(
   readFileSync(new URL("../docs/protocolos/aneurisma_intracraniano_nao_roto.yaml", import.meta.url), "utf8"),
 );

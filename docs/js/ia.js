@@ -9,7 +9,7 @@ import { custoDeUso } from "./custos.js";
 const JEV_URL_DIRETA = "https://api.typesafe.ai/v1/systemone";
 const MODELOS_COM_FALLBACK = new Set(["claude-opus-5-5", "claude-sonnet-5-5"]);
 
-export function criarConexao({ proxyUrl, senha, chaveClaude, chaveJev }) {
+export function criarConexao({ proxyUrl, senha, chaveClaude, chaveJev, workspaceClaude }) {
   if (proxyUrl) {
     const base = proxyUrl.replace(/\/+$/, "");
     return {
@@ -26,7 +26,13 @@ export function criarConexao({ proxyUrl, senha, chaveClaude, chaveJev }) {
   }
   return {
     modo: "direto",
-    claude: chaveClaude ? new Anthropic({ apiKey: chaveClaude, dangerouslyAllowBrowser: true }) : null,
+    claude: chaveClaude
+      ? new Anthropic({
+          apiKey: chaveClaude,
+          dangerouslyAllowBrowser: true,
+          defaultHeaders: workspaceClaude ? { "anthropic-workspace-id": workspaceClaude } : {},
+        })
+      : null,
     jev: chaveJev ? { url: JEV_URL_DIRETA, headers: { Authorization: `Bearer ${chaveJev}` } } : null,
   };
 }
